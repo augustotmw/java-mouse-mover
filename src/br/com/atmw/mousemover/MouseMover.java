@@ -9,7 +9,6 @@ import java.util.TimerTask;
 public class MouseMover {
     private static Timer timer;
     private static boolean moveRight = true;
-    private static JLabel statusLabel;
     private static JLabel lastStatus;
     private static JLabel nextStatus;
     private static JLabel movementStatus;
@@ -132,9 +131,6 @@ public class MouseMover {
         JLabel lastDirectionLabel = new JLabel("Last Direction:");
         JLabel nextDirectionLabel = new JLabel("Next Direction:");
         JLabel movementLabel = new JLabel("It moves in:");
-        
-        statusLabel = new JLabel("<html>Last: <b>none</b><br>Next: <b>none</b><br>It moves in: <b>5s</b></html>", SwingConstants.CENTER);
-        statusLabel.setFont(new Font("Arial", Font.PLAIN, 12));
 
         lastStatus = new JLabel("<html><b>none</b></html>", SwingConstants.CENTER);
         lastStatus.setFont(new Font("Arial", Font.PLAIN, 12));
@@ -218,7 +214,6 @@ public class MouseMover {
     	lastStatus.setText(String.format("<html><b>%s</b></html>", last));
     	nextStatus.setText(String.format("<html><b>%s</b></html>", next));
     	movementStatus.setText(String.format("<html><b>%s</b></html>", countdown));
-        statusLabel.setText(String.format("<html>Last: <b>%s</b><br>Next: <b>%s</b><br>It moves in: <b>%s</b></html>", last, next, countdown));
     }
 
     private static void updateCountdown(String countdown) {
