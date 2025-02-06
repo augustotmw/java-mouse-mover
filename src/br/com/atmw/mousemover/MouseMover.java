@@ -1,10 +1,12 @@
 package br.com.atmw.mousemover;
 
-import javax.swing.*;
-import javax.swing.text.*;
 import java.awt.*;
+import java.io.StringWriter;
+import java.io.PrintWriter;
 import java.util.Timer;
 import java.util.TimerTask;
+import javax.swing.*;
+import javax.swing.text.*;
 
 public class MouseMover {
     private static Timer timer;
@@ -14,9 +16,12 @@ public class MouseMover {
     private static JLabel movementStatus;
     private static JTextField movementField;
     private static JTextField timeField;
-    private static int countdown = 5;
-    private static int movementAmount = 10;
-    private static int moveInterval = 5;
+    private static int countdown = 15;
+    private static int movementAmount = 1;
+    private static int moveInterval = 15;
+    private static JTextArea errorArea;
+    private static JScrollPane errorScrollPane;
+    private static JButton restartButton;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(MouseMover::createAndShowGUI);
@@ -24,7 +29,7 @@ public class MouseMover {
 
     private static void createAndShowGUI() {
         JFrame frame = new JFrame("Mouse Mover");
-        frame.setSize(300, 250);
+        frame.setSize(300, 400); // Aumentei a altura para acomodar a área de erro
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         // Painel principal
@@ -37,13 +42,51 @@ public class MouseMover {
         mainPanel.add(drawOutPanel());
         mainPanel.add(drawButtonPanel(frame));
         mainPanel.add(Box.createVerticalStrut(10));
+        mainPanel.add(createExpandablePanel()); // Adiciona o painel expansível
 
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
     
+    private static JPanel createExpandablePanel() {
+        // Painel principal que contém tudo
+        JPanel expandablePanel = new JPanel();
+        expandablePanel.setLayout(new BorderLayout());
+
+        // Botão para expandir/recolher
+        JButton toggleButton = new JButton("Show Error Log");
+        toggleButton.setPreferredSize(new Dimension(150, 30));
+
+        // Painel que contém a área de erros e o botão "Restart"
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.add(drawErrorPanel());
+        contentPanel.add(drawRestartButton());
+        contentPanel.setVisible(false); // Inicia recolhido
+
+        // Ação do botão de expansão/recolhimento
+        toggleButton.addActionListener(e -> {
+            boolean isVisible = contentPanel.isVisible();
+            contentPanel.setVisible(!isVisible); // Alterna a visibilidade
+            toggleButton.setText(isVisible ? "Show Error Log" : "Hide Error Log"); // Atualiza o texto do botão
+            expandablePanel.revalidate(); // Atualiza o layout
+        });
+
+        // Painel para o botão com margens horizontais de 16px
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 16)); // Margens de 16px à esquerda e à direita
+        buttonPanel.add(toggleButton);
+
+        // Adiciona o painel do botão e o painel de conteúdo ao painel principal
+        expandablePanel.add(buttonPanel, BorderLayout.NORTH);
+        expandablePanel.add(contentPanel, BorderLayout.CENTER);
+
+        return expandablePanel;
+    }
+    
+
     private static JPanel drawButtonPanel(JFrame frame) {
-    	// Botões centralizados
+        // Botões centralizados
         JButton startButton = new JButton("Start");
         JButton stopButton = new JButton("Stop");
         stopButton.setEnabled(false);
@@ -63,8 +106,11 @@ public class MouseMover {
                 stopButton.setEnabled(true);
                 movementField.setEnabled(false);
                 timeField.setEnabled(false);
+                updateCountdown(String.valueOf(moveInterval) + "s");
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(frame, "Por favor, insira valores positivos válidos.", "Erro de entrada", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                handleError(ex);
             }
         });
 
@@ -74,16 +120,17 @@ public class MouseMover {
             stopButton.setEnabled(false);
             movementField.setEnabled(true);
             timeField.setEnabled(true);
+            updateCountdown(String.valueOf(moveInterval) + "s");
         });
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 20, 0));
         buttonPanel.add(startButton);
         buttonPanel.add(stopButton);
-        
+
         return buttonPanel;
     }
-    
+
     private static JPanel drawInputPanel() {
         JPanel inputPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -117,17 +164,17 @@ public class MouseMover {
 
         gbc.gridx = 1;
         inputPanel.add(timeField, gbc);
-        
+
         return inputPanel;
     }
-    
+
     private static JPanel drawOutPanel() {
-    	JPanel outputPanel = new JPanel(new GridBagLayout());
+        JPanel outputPanel = new JPanel(new GridBagLayout());
         GridBagConstraints ogbc = new GridBagConstraints();
         ogbc.insets = new Insets(5, 5, 5, 5);
         ogbc.anchor = GridBagConstraints.CENTER;
         ogbc.fill = GridBagConstraints.HORIZONTAL;
-        
+
         JLabel lastDirectionLabel = new JLabel("Last Direction:");
         JLabel nextDirectionLabel = new JLabel("Next Direction:");
         JLabel movementLabel = new JLabel("It moves in:");
@@ -138,31 +185,71 @@ public class MouseMover {
         nextStatus = new JLabel("<html><b>none</b></html>", SwingConstants.CENTER);
         nextStatus.setFont(new Font("Arial", Font.PLAIN, 12));
 
-        movementStatus = new JLabel("<html><b>5s</b></html>", SwingConstants.CENTER);
+        movementStatus = new JLabel("<html><b>" + countdown + "s</b></html>", SwingConstants.CENTER);
         movementStatus.setFont(new Font("Arial", Font.PLAIN, 12));
-        
+
         ogbc.gridx = 0;
         ogbc.gridy = 0;
         outputPanel.add(lastDirectionLabel, ogbc);
-        
+
         ogbc.gridx = 1;
         outputPanel.add(lastStatus, ogbc);
-        
+
         ogbc.gridx = 0;
         ogbc.gridy = 1;
         outputPanel.add(nextDirectionLabel, ogbc);
-        
+
         ogbc.gridx = 1;
         outputPanel.add(nextStatus, ogbc);
-        
+
         ogbc.gridx = 0;
         ogbc.gridy = 2;
         outputPanel.add(movementLabel, ogbc);
-        
+
         ogbc.gridx = 1;
         outputPanel.add(movementStatus, ogbc);
-        
+
         return outputPanel;
+    }
+
+    private static JPanel drawErrorPanel() {
+        errorArea = new JTextArea("No errors logged"); // Texto inicial
+        errorArea.setEditable(false);
+        errorArea.setLineWrap(true);
+        errorArea.setWrapStyleWord(true);
+        errorArea.setFont(new Font("Arial", Font.PLAIN, 12));
+        errorArea.setBackground(new Color(255, 235, 235));
+        errorArea.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+
+        errorScrollPane = new JScrollPane(errorArea);
+        errorScrollPane.setPreferredSize(new Dimension(300, 100));
+        errorScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+
+        JPanel errorPanel = new JPanel();
+        errorPanel.setLayout(new BorderLayout());
+        errorPanel.add(errorScrollPane, BorderLayout.CENTER);
+
+        return errorPanel;
+    }
+
+    private static JPanel drawRestartButton() {
+        restartButton = new JButton("Restart");
+        restartButton.setPreferredSize(new Dimension(100, 30));
+        restartButton.addActionListener(e -> {
+            stopMouseMover();
+
+            countdown = moveInterval;
+            updateCountdown(String.valueOf(countdown) + "s");
+            updateStatus("none", "none", String.valueOf(countdown) + "s");
+
+            startMouseMover();
+        });
+
+        JPanel restartPanel = new JPanel();
+        restartPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        restartPanel.add(restartButton);
+
+        return restartPanel;
     }
 
     private static void startMouseMover() {
@@ -174,46 +261,49 @@ public class MouseMover {
             timer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    countdown--;
+                    try {
+                        countdown--;
 
-                    if (countdown == 0) {
-                        Point mousePosition = MouseInfo.getPointerInfo().getLocation();
-                        int x = (int) mousePosition.getX();
-                        int y = (int) mousePosition.getY();
+                        if (countdown == 0) {
+                            Point mousePosition = MouseInfo.getPointerInfo().getLocation();
+                            int x = (int) mousePosition.getX();
+                            int y = (int) mousePosition.getY();
 
-                        if (moveRight) {
-                            robot.mouseMove(x + movementAmount, y);
-                            updateStatus("right", "left", moveInterval + "s");
+                            if (moveRight) {
+                                robot.mouseMove(x + movementAmount, y);
+                                updateStatus("right", "left", moveInterval + "s");
+                            } else {
+                                robot.mouseMove(x - movementAmount, y);
+                                updateStatus("left", "right", moveInterval + "s");
+                            }
+                            moveRight = !moveRight;
+                            countdown = moveInterval;
                         } else {
-                            robot.mouseMove(x - movementAmount, y);
-                            updateStatus("left", "right", moveInterval + "s");
+                            updateCountdown(countdown + "s");
                         }
-                        moveRight = !moveRight;
-                        countdown = moveInterval;
-                    } else {
-                        updateCountdown(countdown + "s");
+                    } catch (Exception ex) {
+                        handleError(ex);
                     }
                 }
             }, 0, 1000);
 
         } catch (AWTException e) {
-            System.err.println("Erro ao inicializar o Robot: " + e.getMessage());
+            handleError(e);
         }
     }
 
     private static void stopMouseMover() {
         if (timer != null) {
             timer.cancel();
+            timer.purge();
             timer = null;
-            countdown = moveInterval;
-            updateStatus("none", "none", moveInterval + "s");
         }
     }
 
     private static void updateStatus(String last, String next, String countdown) {
-    	lastStatus.setText(String.format("<html><b>%s</b></html>", last));
-    	nextStatus.setText(String.format("<html><b>%s</b></html>", next));
-    	movementStatus.setText(String.format("<html><b>%s</b></html>", countdown));
+        lastStatus.setText(String.format("<html><b>%s</b></html>", last));
+        nextStatus.setText(String.format("<html><b>%s</b></html>", next));
+        movementStatus.setText(String.format("<html><b>%s</b></html>", countdown));
     }
 
     private static void updateCountdown(String countdown) {
@@ -239,7 +329,12 @@ public class MouseMover {
             }
         });
     }
+
+    private static void handleError(Exception ex) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        ex.printStackTrace(pw);
+        errorArea.setText(sw.toString());
+        errorScrollPane.setVisible(true);
+    }
 }
-
-
-
