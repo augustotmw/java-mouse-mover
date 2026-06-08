@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+}
+
+group = 'br.com.atmw'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Nenhuma dependência externa necessária
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'br.com.atmw.mousemover.MouseMover'
+        )
+    }
+}
