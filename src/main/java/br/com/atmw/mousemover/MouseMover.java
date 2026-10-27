@@ -281,7 +281,16 @@ public class MouseMover {
                         countdown--;
 
                         if (countdown == 0) {
-                            Point mousePosition = MouseInfo.getPointerInfo().getLocation();
+                            // getPointerInfo() devolve null quando não há sessão gráfica
+                            // ativa - tela bloqueada, troca de usuário, RDP desconectado.
+                            PointerInfo pointerInfo = MouseInfo.getPointerInfo();
+                            if (pointerInfo == null) {
+                                cancelTimer();
+                                SwingUtilities.invokeLater(MouseMover::onCursorUnavailable);
+                                return;
+                            }
+
+                            Point mousePosition = pointerInfo.getLocation();
                             int x = (int) mousePosition.getX();
                             int y = (int) mousePosition.getY();
 
@@ -309,19 +318,42 @@ public class MouseMover {
     }
 
     private static void stopMouseMover() {
-        if (timer != null) {
-            timer.cancel();
-            timer.purge();
-            timer = null;
-        }
-        if (robot != null) {
-            robot = null;
-        }
+        cancelTimer();
 
         startButton.setEnabled(true);
         stopButton.setEnabled(false);
         movementField.setEnabled(true);
         timeField.setEnabled(true);
+    }
+
+    private static void cancelTimer() {
+        if (timer != null) {
+            timer.cancel();
+            timer.purge();
+            timer = null;
+        }
+        robot = null;
+    }
+
+    // Para sem retomar o movimento: a condição que anulou o cursor tende a
+    // persistir, e reiniciar aqui reproduziria o erro no tick seguinte.
+    private static void onCursorUnavailable() {
+        logError("Cursor indisponível - tela bloqueada ou sessão inativa. Movimento parado.");
+
+        stopMouseMover();
+
+        countdown = moveInterval;
+        moveRight = true;
+        updateStatus("none", "none", moveInterval + "s");
+    }
+
+    private static void logError(String message) {
+        String current = errorArea.getText();
+        if (current.isEmpty() || "No errors logged".equals(current)) {
+            errorArea.setText(message);
+        } else {
+            errorArea.setText(current + "\n\n" + message);
+        }
     }
 
     private static void updateStatus(String last, String next, String countdown) {
